@@ -2,6 +2,14 @@ module.exports = function() {
 
   var configuration = require('./configuration');
   var loggers = require('winston').loggers;
+  var winstonLoggerFactory = require('winston').Logger;
+  var couchDBTransport = require('winston-couchdb').Couchdb;
+
+  var loggerDocument = new (winstonLoggerFactory)({
+    transports: [
+      new (couchDBTransport)({ timestamp:true, host: '127.0.0.1', db: 'logs', port: 5984 })
+    ]
+  });
 
   function addLogger(name) {
     loggers.add(name, {
@@ -27,6 +35,13 @@ module.exports = function() {
       + '\t' + request.headers.host + request.url 
       + '\t' + code
     );
+    loggerDocument.info({
+      login: (context.login ? context.login : undefined),
+      from: (request.headers['x-forwarded-for'] || request.connection.remoteAddress),
+      method: request.method,
+      target: request.headers.host + request.url,
+      result: code
+    });
   };
 
 }();
