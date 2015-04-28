@@ -5,6 +5,7 @@
   "dependencies": {
     "ldapjs": ">=0.7.x",
     "winston": ">=0.8.x",
+    "winston-couchdb": ">=0.6.x",
     "async": ">=0.9.x",
     "cookies": ">=0.5"
   }

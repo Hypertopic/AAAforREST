@@ -17,7 +17,12 @@
     "rules": [{
       "control": "method != 'GET'",
       "action": "authenticate(context,function(){authorize(context,function(){proxyWork(context)})})"
-    }]
+    }],
+    "logs": {
+      "host": "127.0.0.1",
+      "port": 5984,
+      "dbName": "AAAforREST"
+    }
   },{
     "hostProxy": "traduxio.local",
     "port": 5984,
@@ -29,6 +34,11 @@
     "rules": [{
       "control": "/works/.test(path)",
       "action": "authenticate(context, function(){proxyWork(context);});"
-    }]
+    }],
+    "logs": {
+      "host": "127.0.0.1",
+      "port": 5984,
+      "dbName": "AAAforREST"
+    }
   }]
 }
