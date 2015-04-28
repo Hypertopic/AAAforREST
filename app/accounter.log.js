@@ -7,7 +7,12 @@ module.exports = function() {
 
   var loggerDocument = new (winstonLoggerFactory)({
     transports: [
-      new (couchDBTransport)({ timestamp:true, host: '127.0.0.1', db: 'logs', port: 5984 })
+      new (couchDBTransport)({
+          timestamp:true,
+          host: configuration.logs.host || '127.0.0.1',
+          db: configuration.logs.dbName || 'AAAforREST',
+          port: configuration.logs.port || 5984
+      })
     ]
   });
 
