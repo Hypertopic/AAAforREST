@@ -1,0 +1,33 @@
+<html>
+  <head>
+    <title>Register</title>
+     <link rel="stylesheet" href="register.css" type="text/css" />
+     <script src="jquery.js"></script>
+     <script src="register.js"></script>
+  </head>
+  <body>
+    <div id="main">
+      <form id="register" onsubmit="register(); return false;">
+        <header>
+          <h1>Register</h1>
+        </header>
+        <fieldset>
+          <label for="fullname">Full name</label>
+          <input id="fullname" name="fullname" type="text" />
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required="required" />
+          <label for="login">Username</label>
+          <input id="login" name="login" type="text" required="required" />
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required="required" />
+          <label for="confirm">Confirm password</label>
+          <input id="confirm" name="confirm" type="password" required="required" />
+        </fieldset>
+        <footer>
+          <label for="submit" id="message"></label>
+          <input id="submit" type="submit" />
+        </footer>
+      </form>
+    </div>
+  </body>
+</html>
