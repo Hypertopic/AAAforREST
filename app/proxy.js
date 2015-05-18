@@ -281,6 +281,13 @@ app.use(function(requestIn, responseOut, next) {
       agent: false
     };
     if (!site.preserveCredentials) delete context.options.headers.Authorization;
+    if (site.forwardedLoginHeader) {
+      for (var header in context.options.headers) {
+        if (header.toLowerCase()==site.forwardedLoginHeader.toLowerCase()) {
+          delete context.options.headers[header];
+        }
+      }
+    }
     parseHttpCredentials(context);
     var i = 0;
     var found = false;
