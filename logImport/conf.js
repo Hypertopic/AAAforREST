@@ -1,7 +1,7 @@
 module.exports = {
 
 	database: {
-		name: 'try',
+		name: 'aaaforrest',
 		url: 'http://localhost:5984'
 	
 	},
