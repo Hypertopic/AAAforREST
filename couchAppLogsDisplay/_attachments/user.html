@@ -1,0 +1,177 @@
+<html>
+	<head>
+	
+		<!-- LIBS -->
+		<script src="./js/d3.min.js"></script>
+		<script src="./js/moment.min.js"></script>
+		<script src="./js/jquery-2.1.3.min.js"></script>
+		<script src="./js/graph.js"></script>
+		<script src="./js/utils.js"></script>
+		
+		<!-- CSS -->
+		<link rel="stylesheet" href="./css/bootstrap.min.css"/>
+		<link rel="stylesheet" href="./css/bootstrap-theme.min.css"/>
+		<link rel="stylesheet" href="./css/style.css"/>
+		<link rel="stylesheet" href="./css/basic.css"/>
+		<link rel="stylesheet" href="./css/graph.css"/>
+	</head>
+	
+	<body>
+		<script>
+			var gbFilters = {};
+			var gbData = [];
+			var calendarGraph = null;
+			var pieGraph = null;
+		
+			var params = getUrlRequestParams();
+
+			
+			
+			
+			$.getJSON("./_view/countByIPDateMethodResult?group=true&startkey=[\""+params.key+"\",\"\"]&endkey=[\""+params.key+"@9\",{}]", function(result){
+				gbData = result;
+				var contrib = [];
+				var byMethod = {};
+				var resultByMethod = {};
+				result.rows.forEach(
+				function(item){
+					var itemMethod = item.key[2];
+					if(typeof(gbFilters[itemMethod]) === "undefined") {
+						gbFilters[itemMethod] = true;
+						$('#filterButtonList').append('<button id="filter'+itemMethod+'" type="button" class="btn btn-default active" onClick="toggleState(\''+itemMethod+'\');">'+itemMethod+'</button>');
+					}
+					contrib.push({key:item.key[1], value: item.value});
+					if(typeof(byMethod[itemMethod])==='undefined') {
+						byMethod[itemMethod] = 0;
+					}
+					byMethod[itemMethod]+= item.value;
+					if(typeof(resultByMethod[itemMethod]) === "undefined") {
+						resultByMethod[itemMethod] = {};
+					}
+					if(typeof(resultByMethod[itemMethod][item.key[3]]) === "undefined") {
+						resultByMethod[itemMethod][item.key[3]] = 0;
+					}
+					resultByMethod[itemMethod][item.key[3]] += item.value;
+				});
+
+				$('#content .panel-heading').html(params.key);
+
+				pieGraph = graph.newPieChart($("#contrib #pieChart"), byMethod)
+					.refresh();
+				
+				calendarGraph = graph.newCalendarChart( $("#contrib"), contrib )
+					.refresh();
+					
+				for(var method in resultByMethod) {
+					var html = '<div class="col-lg-6">';
+					html += '<div class="panel panel-primary"><div class="panel-heading">' + method + '</div><div id="resultBy' + method +'" class="panel-body"></div></div>';
+					html+= '</div>';
+					$('#resultByMethod').append(html);
+					graph.newPieChart($('#resultBy' + method), resultByMethod[method]).refresh();
+				}
+					
+
+				var dataCalendar = {};
+				
+				for(var i in contrib) {
+					var obj = contrib[i];
+					var date = moment(obj.key);
+					var key = date.year() + "-" + date.month() + "-" + date.date();
+
+					dataCalendar[key] = obj.value;
+				}
+				
+				
+				var maxInARow = 0;
+				var inARow = 0;
+				var currentDate = moment().subtract(365, 'days');
+				for(var i = 0; i <= 365; i++) {
+					var key = currentDate.year() + "-" + currentDate.month() + "-" + currentDate.date();
+					
+					if(typeof(dataCalendar[key]) === "undefined") {
+						inARow = 0;
+					} else {
+						if(dataCalendar[key] > 0) {
+							inARow++;
+						}
+					}
+					if(inARow > maxInARow) {
+						maxInARow = inARow;
+					}
+					currentDate.add(1, 'days');
+				}
+				$('#contribInARow').append('Nombre de jours cumul&#233;s avec une contribution : ' + maxInARow);
+			});
+			
+			function refreshCalendar() {
+				var contrib = [];
+				var byMethod = [];
+				gbData.rows.forEach(
+					function(item){
+						var itemMethod = item.key[2];
+						if(gbFilters[itemMethod]) {
+							contrib.push({key:item.key[1], value: item.value});
+							if(typeof(byMethod[item.key[itemMethod]])==='undefined') {
+								byMethod[itemMethod] = 0;
+							}
+							byMethod[itemMethod]+= item.value;
+						}
+					}
+				);
+				contrib.sort(function(a, b){ return moment(a.date).isAfter(moment(b.date));});
+
+				$('#content .panel-heading').html(params.key);
+				calendarGraph.setData( contrib )
+					.refresh();
+				pieGraph.setData( byMethod )
+					.refresh();
+
+			}
+		
+			function toggleState(method) {
+				var state = !gbFilters[method];
+				gbFilters[method] = state;
+				if(state) {
+					$('#filter' + method).addClass('active');
+				} else {
+					$('#filter' + method).removeClass('active');
+				}
+				refreshCalendar();
+			}
+		</script>
+		<nav class="navbar navbar-default">
+		  <div class="container-fluid">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="#">Logs report</a>
+			</div>
+
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+				<ul class="nav navbar-nav">
+					<li><a href="./index.html">Index</a></li>
+					<li><a href="/_utils/">CouchDB Admin</a></li>
+				</ul>
+			</div>	
+		</nav>
+		<div id="content">
+			<div id="contrib" class="panel panel-primary">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<div id="contribInARow" class="alert alert-info"></div>
+					<div id="filterButtonList" class="btn-group" role="group" aria-label="..."></div><br/>
+					<div class="rows">
+						<div class="col-sm-10 col-md-offset-1 col-md-8 col-md-offset-2 col-lg-6 col-lg-offset-3" id="pieChart" style="max-width:700px;"></div>
+					</div>
+					<div class="clearfix"></div>
+				</div>
+			</div>
+			<div id="resultByMethod" class="rows"></div>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,33 @@
+.graph-calendar path {
+	stroke: black;
+	stroke-width: 1;
+	fill: transparent;
+}
+.graph-calendar line {
+	stroke: black;
+}
+svg.graph-calendar {
+	width:100%;
+	height: auto;
+}
+.graph-calendar rect {
+	width: 20px;
+	height: 20px;
+	stroke: black;
+	stroke-width: 0.1;
+}
+
+
+svg.graph-pie {
+	width:100%;
+	height: auto;
+}
+.graph-pie rect{
+	width: 20px;
+	height: 10px;
+	stroke: black;
+	stroke-width: 0.1;
+}
+.graph-pie text {
+	font-size: 9px;
+}

@@ -1,0 +1,138 @@
+<html>
+	<head>
+	
+		<!-- LIBS -->
+		<script src="./js/d3.min.js"></script>
+		<script src="./js/moment.min.js"></script>
+		<script src="./js/jquery-2.1.3.min.js"></script>
+		<script src="./js/graph.js"></script>
+		<script src="./js/utils.js"></script>
+		
+		<!-- CSS -->
+		<link rel="stylesheet" href="./css/bootstrap.min.css"/>
+		<link rel="stylesheet" href="./css/bootstrap-theme.min.css"/>
+		<link rel="stylesheet" href="./css/style.css"/>
+		<link rel="stylesheet" href="./css/basic.css"/>
+		<link rel="stylesheet" href="./css/graph.css"/>
+	</head>
+	
+	<body>
+		<nav class="navbar navbar-default">
+		  <div class="container-fluid">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="#">Logs report</a>
+			</div>
+
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+				<ul class="nav navbar-nav">
+					<li><a href="./index.html">Index</a></li>
+					<li><a href="/_utils/">CouchDB Admin</a></li>
+				</ul>
+			</div>	
+		</nav>
+		<div id="content">
+			<ol id="breadcrumb" class="breadcrumb">
+			  <li><a href="./index.html">Index</a></li>
+			</ol>
+			<div class="panel panel-primary" id="panelInformations" style="display:none;">
+				<div class="panel-heading">Informations</div>
+				<div class="panel-body">
+					<div class="rows">
+						<div id="pieChartA" class="col-sm-10 col-md-offset-1 col-md-8 col-md-offset-2 col-lg-6" style="max-width:700px;"></div>
+						<div id="pieChartB" class="col-sm-10 col-md-offset-1 col-md-8 col-md-offset-2 col-lg-6" style="max-width:700px;"></div>
+					</div>
+				</div>
+			</div>
+			<div class="panel panel-primary" id="panelUrls" style="display:none;">
+				<div class="panel-heading">Url</div>
+				<div class="panel-body">
+					<div id="url" class="list-group">
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+			var params = getUrlRequestParams();
+			
+			var level = parseInt(params.level);
+			
+			var filter = '[';
+			var nextUrl = './url.html?';
+			var fileUrl = '';
+			for(var i = 1; i <= level; i++) {
+				filter += '"' + encodeURIComponent(params['url' + i]) + '", ';
+				nextUrl += 'url' + i + '=' + encodeURIComponent(params['url' + i]) + '&';
+				if(fileUrl !== "") {
+					fileUrl += "/";
+				}
+				fileUrl += encodeURIComponent(params['url' + i]);
+				
+				
+				if(level === i) {
+					$('#breadcrumb').append('<li class="active">'+params['url' + i]+'</li>');
+				} else {
+					$('#breadcrumb').append('<li><a href="'+nextUrl+'level='+i+'">'+params['url' + i]+'</a></li>');
+				}
+			}
+			
+			nextUrl += 'level=' + (level + 1);
+			
+			
+			
+			
+			var startKey = filter + '""]';
+			var endKey = filter + '{}]';
+			
+			$.getJSON("./_view/countByUrl?group=true&group_level=" + (1 + level) + "&startkey=" + startKey + "&endkey=" + endKey, function(result){
+				if(result.rows.length > 0) {
+					$('#panelUrls').show();
+				}
+				result.rows.sort(function(a,b){return b.value - a.value;});
+				result.rows.forEach(
+				function(item){
+					var name = item.key[level];
+					if(name === "") { name = "\"\"";}
+					$("#url").append('<a href="'+nextUrl+'&url'+(1 + level)+'='+encodeURIComponent(item.key[level])+'" class="list-group-item"><span class="badge">'+item.value+'</span>'+name+'</a>');
+				});
+			});
+			
+			$.getJSON("./_view/countByUrlAbsolute?group=true&startkey=[\"" + fileUrl + "\",\"\"]&endkey=[\"" + fileUrl + "\",{}]", function(result){
+				
+				if(result.rows.length > 0) {
+					$('#panelInformations').show();
+				}
+				
+				var byMethod = {};
+				var byUser = {};
+				result.rows.forEach(
+				function(item){
+					if(typeof(byMethod[item.key[3]])==='undefined') {
+						byMethod[item.key[3]] = 0;
+					}
+					byMethod[item.key[3]]+= item.value;
+					if(typeof(byUser[item.key[1]])==='undefined' && item.key[1] !== "") {
+						byUser[item.key[1]] = 0;
+					}
+					if(item.key[1] !== "") {
+						byUser[item.key[1]]+= item.value;
+					}
+				});
+
+				$('#content .panel-heading').html(params.key);
+
+				pieGraphMethod = graph.newPieChart($("#pieChartA"), byMethod )
+					.refresh();
+				pieGraphUser = graph.newPieChart($("#pieChartB"), byUser )
+					.refresh();
+					
+			});
+		</script>
+	</body>
+</html>
