@@ -1,20 +1,15 @@
-sudo: false
-
 services: couchdb
 
 language:
 - node_js
-- ruby
 - python
 
 node_js: 8
-rvm: ruby-head
 python: 2.7
 
 cache:
   directories:
   - node_modules
-  - ~/.rvm/gems
   - ~/.local
 
 addons:
@@ -37,8 +32,6 @@ install:
 - npm start
 # Install CouchApp
 - pip install --user couchapp
-# Install Capybara
-- gem install capybara-webkit rspec
 # Install Cassandre
 - curl -X PUT -d '"false"' localhost:5984/_config/httpd/secure_rewrites
 - curl -X PUT localhost:5984/cassandre
@@ -54,4 +47,3 @@ install:
 - curl -X PUT localhost:5984/_config/admins/carroll -d '"curiouser"'
 script:
 - jasmine-node spec/api/
-- xvfb-run rspec spec/features/*
