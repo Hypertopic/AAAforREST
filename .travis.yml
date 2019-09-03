@@ -4,7 +4,7 @@ language:
 - node_js
 - python
 
-node_js: 8
+node_js: lts
 python: 2.7
 
 cache:
