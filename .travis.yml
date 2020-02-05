@@ -27,8 +27,6 @@ addons:
 install:
 - npm install
 - cp conf/config.sample.json conf/config.json
-- mkdir log/
-- touch log/misc.log
 - npm start
 # Install CouchApp
 - pip install --user couchapp

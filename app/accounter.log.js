@@ -2,6 +2,7 @@ module.exports = function() {
 
   var configuration = require('./configuration');
   var loggers = require('winston').loggers;
+  var fs = require('fs');
 
   function addLogger(name) {
     loggers.add(name, {
@@ -11,6 +12,8 @@ module.exports = function() {
       }
     });
   }
+
+  if (!fs.existsSync('log')) fs.mkdirSync('log');
   configuration.sites.forEach(function(site) {
     addLogger(site.hostProxy);
   });

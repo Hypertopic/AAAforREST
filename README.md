@@ -23,7 +23,6 @@ Installation procedure
         git clone https://github.com/Hypertopic/AAAforREST.git
         cd AAAforREST
         npm install
-        mkdir log
         cp conf/config.sample.js conf/config.js
 
 * Change settings in `config.js`.
