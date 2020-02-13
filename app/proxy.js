@@ -1,497 +1,186 @@
-var express = require('express');
-var vhost = require('vhost');
+var app = require('express')();
 var proxy = require('express-http-proxy');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-var http = require('http');
-var url = require('url');
-var async = require('async');
-var configuration = require('./configuration');
-var ldap = require('./authenticator.ldap');
-var basic = require('./authenticator.http');
-var cookie = require('./authenticator.cookie');
-var log = require('./accounter.log');
-var forwardAuth = require('couch-proxy-auth');
+var Ldap = require('ldapauth-fork');
+var basicAuth = require('basic-auth');
+var logger = require('morgan');
 var cors = require('cors');
+var createHmac = require('crypto').createHmac;
+var yaml = require('yaml');
+var fs = require('fs');
+var fetch = require('node-fetch');
 
-configuration.sites.forEach(cookie.manageSession);
+process.on('uncaughtException', function(e) {
+  console.log(e.message);
+  process.exit(1);
+});
 
+let settings = yaml.parse(fs.readFileSync('conf/config.yml', 'utf8'));
+let directory = new Ldap(settings.ldap);
 
-function act(context, toDo) {
-  var method = context.requestIn.method,
-    login = (context.requestIn.auth)? context.requestIn.auth.login||'' : '',
-    path = url.parse(context.requestIn.url).path;
-  var scope = {
-    login: login,
-    method: method,
-    path: path,
-    authenticate: authenticate,
-    authenticateIfPresent: authenticateIfPresent,
-    authorize: authorize,
-    proxyWork: proxyWork,
-    sendResponse: sendResponse,
-    tryAgain: tryAgain,
-    context: context
-  };
-  return typeof toDo == 'function' && toDo.call(scope) || eval(toDo);
-}
+// Express middleware
 
-function tryAgain(context) {
-  context.responseOut.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-  sendResponse(context, 401, 'Unauthorized');
-}
+let getSession = session(settings.session);
 
-/*
- * Default implementation of checkCredentials (with fixed login and password)
- * that can be replaced for various authentication formats and protocols.
- * Return true if the login was found.
- * Set `auth.success` to true if the credentials were good.
- */
-var dummy = function(auth, settings, callback) {
-  if (auth.login==settings.login) {
-    auth.success = auth.password==settings.password;
+let setProxy = proxy(settings.service, {
+  preserveHostHdr: true,
+  proxyReqPathResolver: (req) => settings.path + req.url,
+  proxyReqOptDecorator: function(req) {
+    delete req.headers.authorization;
+    return req;
   }
-  callback(auth.success!==undefined);
+});
+
+let destroySession = function (request, response, next) {
+  request.session = null;
+  next();
+}
+
+let continueIfContentType = function(types) {
+  return function(request, response, next) {
+    if (types.includes(request.headers["content-type"])) {
+      next();
+    } else {
+      response.sendStatus(415);
+    }
+  };
+}
+
+let parseAuthenticationForm = function(request, response, next) {
+  request.auth = {
+    name: request.body.name,
+    pass: request.body.password
+  }
+  next();
 };
 
-function authenticateIfPresent(context, callback) {
-  var request = context.requestIn;
-  authenticate(context, callback, request.auth===undefined);
-}
-
-function authenticate(context, callback, shouldNotCatch) {
-    var request = context.requestIn;
-    var site = configuration.site(request);
-    var authenticators = site.authentication;
-    async.detectSeries(authenticators, function(authenticator, callback) {
-      if (request.auth) {
-        if (authenticator.dn) {
-          ldap(request.auth, authenticator, callback);
-        } else if (authenticator.url) {
-          basic(request.auth, authenticator, callback);
-        } else {
-          dummy(request.auth, authenticator, callback);
-        }
-      } else if (context.requestIn.headers.cookie) {
-        cookie.check(context, authenticator, callback);
-      } else {
-        callback();
+let checkAuthenticationOnLDAP = function(request, response, next) {
+  if (request.auth && request.auth.pass) {
+    directory.authenticate(request.auth.name, request.auth.pass, function(err, user) {
+      if (!(/^no such user/.test(err))) {
+        request.auth.success = !err;
       }
-    }, function(authenticator) {
-      if (request.auth && request.auth.success) {
-        if (!authenticator.preserveCredentials) {
-          delete context.options.headers.Authorization;
-        }
-        if (site.forwardedLoginHeader) {
-          context.options.headers[site.forwardedLoginHeader] = request.auth.login;
-        }
-        if (site.forwardedLoginSecret) {
-          var addedHeaders = forwardAuth(
-            request.auth.login,
-            site.forwardedLoginRoles || 'protect',
-            site.forwardedLoginSecret
-          );
-          for (var newHeader in addedHeaders) {
-            // since roles are forced to a value, the role header is given by couch-proxy-auth
-            // so can't be forged
-            removeHeader(context.options.headers,newHeader);
-            context.options.headers[newHeader] = addedHeaders[newHeader];
-          }
-        }
-        callback(true);
-      } else {
-        //if authorization header is present, it means that preserveCredentials
-        //is true, so we authorize to forward the request to upstream server
-        if (context.options.headers.Authorization || shouldNotCatch) {
-          callback();
-        } else {
-          tryAgain(context);
-        }
-      }
+      next();
     });
-}
-
-function sendResponse(context, statusCode, message) {
-  addOriginIfAny(context);
-  log(context, 'HTTP', statusCode);
-  context.responseOut.status(statusCode).send(message);
-}
-
-/**
- * Authorize access to restricted resources.
- */
-function authorize(context, callback) {
-  var request = context.requestIn;
-  var acl = configuration.site(request).restricted;
-  var resourceMatch, userMatch;
-  for (var uriPart in acl) {
-    resourceMatch = context.requestIn.url.indexOf(uriPart) > -1;
-    userMatch =  acl[uriPart].indexOf(request.auth.login) > -1;
-    if (resourceMatch) break;
-  }
-  if (resourceMatch && !userMatch) {
-    tryAgain(context);
   } else {
-    callback();
+    next();
   }
-}
+};
 
-function uCaseWord(word) {
-  switch(word) {
-    case 'etag':return 'ETag';
-    default: return word.replace(/^./,function(l){return l.toUpperCase();});
-  }
-}
-
-function uCaseHeader(headerName) {
-  return headerName.replace(/\w*/g,uCaseWord);
-}
-
-//TODO replace with `.rawHeaders` when Node.js stable version is 0.11
-function preserveHeadersCase(nodeHeaders) {
-  var couchHeaders={};
-  for (var i in nodeHeaders) {
-    couchHeaders[uCaseHeader(i)]=nodeHeaders[i];
-  }
-  return couchHeaders;
-}
-
-function removeHeader(headers,header) {
-  for (var h in headers) {
-    if (h.toLowerCase()==header.toLowerCase()) {
-      delete headers[h];
-    }
-  }
-}
-
-function addHeaders(response,headers) {
-  headers=preserveHeadersCase(headers);
-  for (var header in headers) {
-    var value=headers[header];
-    var existingHeader=response.getHeader(header);
-    if (existingHeader) {
-      value=[value].concat(existingHeader);
-    }
-    response.setHeader(header,value);
-  }
-}
-
-function addOriginIfAny(context) {
-  var siteSettings = configuration.site(context.requestIn);
-  if (siteSettings && siteSettings.origin) {
-    context.responseOut.setHeader('Access-Control-Allow-Origin', siteSettings.origin);
-    context.responseOut.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-}
-
-// Main proxy function that forward the request and the related answers
-
-function proxyWork(context) {
-  var request = context.requestIn;
-  var site = configuration.site(request);
-  if (!context.requestIn.readable) {
-    if (context.options.body && typeof context.options.body =='string')
-      context.options.headers['Content-Length']=context.options.body.length;
-    else
-      delete context.options.headers['Content-Length'];
-  }
-
-  var requestOut = http.request(context.options, function(responseIn) {
-    if (responseIn.headers.location && site.hideLocationParts) {
-      var locationParts = responseIn.headers.location.split('/');
-      locationParts.splice(3, site.hideLocationParts);
-      responseIn.headers.location = locationParts.join('/');
-    }
-
-    addHeaders(context.responseOut,responseIn.headers);
-
-    context.responseOut.writeHead(
-      responseIn.statusCode
-    );
-    log(context, 'HTTP', responseIn.statusCode);
-    responseIn.on('data', function(chunkOrigin) {
-      context.responseOut.write(chunkOrigin);
-    });
-    responseIn.on('end', function() {
-      context.responseOut.end();
-      responseIn.socket.end();
-    });
-  });
-
-  requestOut.on('error', function(err){
-    console.log('problem with the server: ' + JSON.stringify(err));
-    sendResponse(context, 504, "Gateway Timeout");
-  });
-
-  if (context.requestIn.readable) {
-
-  context.requestIn.on('data', function(chunkInit) {
-    requestOut.write(chunkInit);
-  });
-
-  context.requestIn.on('error', function(err) {
-    log(context, err, 0);
-    console.log('problem with request: ' + err.message);
-  });
-
-  context.requestIn.on('end', function(){
-    requestOut.end();
-  });
-  } else {
-    if (context.options.body) requestOut.write(context.options.body);
-    requestOut.end();
-  }
-
-  context.responseOut.on('close', function() {
-    requestOut.abort();
-    requestOut.socket.end();
-  });
-}
-
-function parseHttpCredentials(context) {
-  var request = context.requestIn;
-  var authorization = request.headers.authorization;
-  if (authorization) {
-    var token = authorization.split(" ");
-    if (token[0]=='Basic' && token.length>1) {
-      var credentials = new Buffer(token[1], 'base64').toString().split(':');
-      request.auth = {
-        login: credentials.shift(),
-        password: credentials.join(":")
-      };
-    }
-  }
-}
-
-/**
- * @implement Express middleware.
- */
-function parseFormAuthentication(request, response, next) {
-  if (!request.auth) {
-    var form = request.body;
-    if (form.name && form.password) {
-      request.auth = {
-        login: form.name,
-        password: form.password
-      };
-    }
-  }
-  next();
-}
-
-/**
- * @implement Express middleware.
- */
-function checkCookieAuthentication(request, response, next) {
-  if (!request.auth && request.session && request.session.login) {
-    request.auth = {
-      login: request.session.login,
-      success: true
+let checkAuthenticationOnHTTP = function(request, response, next) {
+  if (request.auth && request.auth.pass && request.auth.success === undefined) {
+    let headers = {
+      'Authorization': 'Basic '
+        + Buffer.from(request.auth.name + ":" + request.auth.pass).toString('base64')
     };
+    fetch(`http://${settings.service}/`, {headers})
+      .then((x) => {
+        request.auth.success = x.ok;
+        next();
+      });
+  } else {
+    next();
   }
-  next();
-}
+};
 
-/**
- * @implement Express middleware.
- */
-function continueIfAuthentified(request, response, next) {
+let continueIfAuthentified = function(request, response, next) {
   if (request.auth && request.auth.success) {
     next();
   } else {
     response.sendStatus(401);
   }
-}
+};
 
-function ok(request, response, next) {
-  var o = {ok: true};
+let storeInSession = function(request, response, next) {
+  request.session.name = request.auth.name;
+  next();
+};
+
+let sendUser = function(request, response, next) {
+  let o = {ok:true};
   if (request.auth) {
-    o.name = request.auth.login;
+    o.name = request.auth.name;
   }
   response.json(o);
-}
+};
 
-/**
- * @return middleware that checks login and password against
- * a single HTTP URI with basic authentication.
- */
-function checkAuthenticationOnHTTP(authenticator) {
-  return function(request, response, next) {
-    if (request.auth) {
-      basic(request.auth, authenticator, function() {
-        next();
-      });
-    } else {
-      next();
-    }
-  };
-}
-
-/**
- * @return middleware that checks login and password against
- * an LDAP directory.
- */
-function checkAuthenticationOnLDAP(authenticator) {
-  return function(request, response, next) {
-    if (request.auth) {
-      ldap(request.auth, authenticator, function() {
-        next();
-      });
-    } else {
-      next();
-    }
-  };
-}
-
-/**
- * @return middleware that checks login and password against
- * a given login and password
- */
-function checkAuthenticationOnFixed(authenticator) {
-  return function(request, response, next) {
-    if (request.auth) {
-      dummy(request.auth, authenticator, function(authentified) {
-        next();
-      });
-    } else {
-      next();
-    }
-  };
-}
-
-/**
- * @return middleware that checks login and password against
- * the authenticator according to its type.
- */
-function checkAuthentication(authenticator) {
-  if (authenticator.dn)
-    return checkAuthenticationOnLDAP(authenticator);
-  if (authenticator.url)
-    return checkAuthenticationOnHTTP(authenticator);
-  return checkAuthenticationOnFixed(authenticator);
-}
-
-var setSession = session({
-  secret: 's3cr3t'+ new Date(),
-  resave: false,
-  saveUninitialized: false,
-  unset: 'destroy',
-  cookie: {
-    domain: configuration.domain
-  }
-});
-
-function setSessionLogin(request, response, next) {
-  request.session.login = request.auth.login;
-  next();
-}
-
-function unsetSessionLogin(request, response, next) {
-  request.session = null;
-  request.auth = null;
-  next();
-}
-
-function continueIfForm(request, response, next) {
-  var type = request.headers['content-type'];
-  if (!type || type.indexOf('application/x-www-form-urlencode')!==0) {
-    return response.sendStatus(415);
-  }
-  next();
-}
-
-var app = express();
-
-if (configuration.domain && configuration.authentication) {
-  var userApp = express.Router();
-  userApp.use(cors());
-  userApp.use(express.static('public'));
-  userApp.route('/_users/*').all(
-    proxy(configuration.users || 'localhost:5984')
-  );
-  userApp.route('/_session')
-    .post(
-      unsetSessionLogin,
-      continueIfForm,
-      bodyParser.urlencoded({extended: false}),
-      parseFormAuthentication,
-      checkAuthentication(configuration.authentication), //TODO multiple sources
-      continueIfAuthentified,
-      setSession,
-      setSessionLogin,
-      ok
-    ).get(
-      setSession,
-      checkCookieAuthentication,
-      ok
-    ).delete(
-      setSession,
-      checkCookieAuthentication,
-      unsetSessionLogin,
-      ok
-    );
-  app.use(vhost('auth.' + configuration.domain, userApp));
-}
-
-app.use(function(requestIn, responseOut, next) {
-  var context = {
-    requestIn: requestIn,
-    responseOut: responseOut,
-    date: new Date()
-  };
-  var domain=require("domain").create();
-  domain.on("uncaughtException",function(err) {
-    console.log("BIG UNCAUGHT EXCEPTION");
-    console.log(err);
-    console.log(err.stack);
-    sendResponse(context, 500, "Server Exception");
-  });
-  domain.on("error",function(err) {
-    console.log("BIG ERROR");
-    console.log(err);
-    console.log(err.stack);
-    sendResponse(context, 500, "Server Error");
-  });
-
-  domain.add(requestIn);
-  domain.add(responseOut);
-
-  domain.run(function() {
-
-  var site = configuration.site(requestIn);
-  if (site===null) {
-    sendResponse(context, 404, "Not Found");
-  } else {
-    context.options = {
-      host: site.host || 'localhost',
-      port: site.port || 80,
-      path: (site.path || '') + url.parse(requestIn.url).path,
-      method: requestIn.method,
-      headers: preserveHeadersCase(requestIn.headers),
-      agent: false
+let loadInSession = function(request, response, next) {
+  if (!request.auth && request.session && request.session.name) {
+    request.auth = {
+      name: request.session.name,
+      success: true
     };
-    if (!site.preserveCredentials) delete context.options.headers.Authorization;
-    parseHttpCredentials(context);
-    var i = 0;
-    var found = false;
-    while (!found && i<site.rules.length) {
-      var rule = site.rules[i];
-      try {
-        if (act(context, rule.control)===true) {
-          found = true;
-          act(context, rule.action);
-        }
-      } catch (e) {
-        console.log(e + '. RULE ' + site.hostProxy + ' #' + i);
-        sendResponse(context, 500, 'Configuration error');
-      }
-      i++;
-    }
-    if (!found) proxyWork(context); //Fallback rule
   }
-  });
-});
+  next();
+};
 
-app.listen(configuration.port, function() {
-  console.log('Server running port ' + configuration.port);
+let parseAuthenticationHeader = function(request, response, next) {
+  if (request.headers.authorization) {
+    request.auth = basicAuth(request) || null;
+  }
+  next();
+};
+
+let updateHeaders = function(request, response, next) {
+  if (request.auth) {
+    request.headers = Object.assign({
+      'X-Auth-CouchDB-UserName': request.auth.name,
+      'X-Auth-CouchDB-Roles': 'user',
+      'X-Auth-CouchDB-Token': createHmac('sha1', settings.secret).update(request.auth.name).digest('hex')
+    }, request.headers);
+  }
+  next();
+};
+
+// Express app configuration
+
+app.use(logger(settings.logFormat));
+
+app.route('/_session')
+  .post(
+    cors({credentials: true}),
+    getSession,
+    destroySession,
+    continueIfContentType(['application/x-www-form-urlencoded','application/json']),
+    bodyParser.urlencoded({extended: false}),
+    bodyParser.json({extended: false}),
+    parseAuthenticationForm,
+    checkAuthenticationOnLDAP,
+    checkAuthenticationOnHTTP,
+    continueIfAuthentified,
+    getSession,
+    storeInSession,
+    sendUser
+  ).get(
+    cors({credentials: true}),
+    getSession,
+    loadInSession,
+    sendUser
+  ).delete(
+    cors({credentials: true}),
+    getSession,
+    destroySession,
+    sendUser
+  ).options(
+    cors({credentials: true}),
+  );
+
+app.route('*')
+  .get(
+    setProxy
+  )
+  .all(
+    getSession,
+    loadInSession,
+    parseAuthenticationHeader,
+    checkAuthenticationOnLDAP,
+    checkAuthenticationOnHTTP,
+    continueIfAuthentified,
+    updateHeaders,
+    setProxy
+  );
+
+app.listen(settings.port, function() {
+  console.log(`Test it on http://localhost:${settings.port}/`);
 });

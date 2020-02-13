@@ -1,0 +1,15 @@
+port: 1337
+service: localhost:5984
+path: /argos/_design/argos/_rewrite
+secret: TO_BE_CHANGED
+logFormat: dev
+session:
+  secret: TO_BE_CHANGED2
+  resave: false
+  saveUninitialized: false
+  unset: destroy
+ldap:
+  url: ldap://ldap.forumsys.com
+  searchBase: dc=example,dc=com
+  searchFilter: (uId={{username}})
+

@@ -1,4 +1,4 @@
-services: couchdb
+services: docker
 
 language:
 - node_js
@@ -12,36 +12,19 @@ cache:
   - node_modules
   - ~/.local
 
-addons:
-  hosts:
-    - auth.local
-    - cassandre.local
-    - couchdb.local
-    - xcouchdb.local
-    - xxcouchdb.local
-    - xxxcouchdb.local
-    - auth_fixed.local
-    - auth_ldap.local
-    - auth_http.local
-
 install:
+- docker run --name couchdb1 -d -p 5984:5984 -v "$(pwd)"/conf/couchdb.ini:/opt/couchdb/etc/local.d/docker.ini couchdb
 - npm install
-- cp conf/config.sample.json conf/config.json
-- npm start
+- npm start &
 # Install CouchApp
 - pip install --user couchapp
-# Install Cassandre
-- curl -X PUT -d '"false"' localhost:5984/_config/httpd/secure_rewrites
-- curl -X PUT localhost:5984/cassandre
-- wget https://github.com/Hypertopic/Cassandre/archive/v2.zip
-- unzip v2.zip
-- couchapp push Cassandre-2 http://localhost:5984/cassandre
+# Install Argos
+- wget https://github.com/Hypertopic/Argos/archive/v4.zip
+- unzip v4.zip
+- couchapp push Argos-4/app http://localhost:5984/argos
 # Set up test fixture
-- curl -X PUT -d '"{couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_auth, proxy_authentication_handler}, {couch_httpd_auth, default_authentication_handler}"' localhost:5984/_config/httpd/authentication_handlers
-- curl -X PUT -d'"true"' localhost:5984/_config/couch_httpd_auth/proxy_use_secret
-- curl -X PUT -d'"secretkeyforcouchdbauthtoken"' localhost:5984/_config/couch_httpd_auth/secret
-- curl -X PUT localhost:5984/cassandre/iamlate -d '{"corpus":"Wonderland", "name":"I am late"}'
-- curl -X PUT localhost:5984/_users/org.couchdb.user:hatter -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{"name":"hatter", "password":"teaparty", "roles":[], "type":"user"}'
-- curl -X PUT localhost:5984/_config/admins/carroll -d '"curiouser"'
+- curl -X PUT localhost:5984/_users
+- curl -X PUT localhost:5984/_users/org.couchdb.user:alice -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{"name":"alice", "password":"whiterabbit", "roles":[], "type":"user"}'
+- curl -X PUT localhost:5984/_users/org.couchdb.user:riemann -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{"name":"riemann", "password":"secret", "roles":[], "type":"user"}'
 script:
-- jasmine-node spec/api/
+- npm test
