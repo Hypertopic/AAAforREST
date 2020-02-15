@@ -8,6 +8,9 @@ session:
   resave: false
   saveUninitialized: false
   unset: destroy
+cors:
+  credentials: true
+  origin: http://localhost:3000
 ldap:
   url: ldap://ldap.forumsys.com
   searchBase: dc=example,dc=com

@@ -139,7 +139,7 @@ app.use(logger(settings.logFormat));
 
 app.route('/_session')
   .post(
-    cors({credentials: true}),
+    cors(settings.cors),
     getSession,
     destroySession,
     continueIfContentType(['application/x-www-form-urlencoded','application/json']),
@@ -153,24 +153,25 @@ app.route('/_session')
     storeInSession,
     sendUser
   ).get(
-    cors({credentials: true}),
+    cors(settings.cors),
     getSession,
     loadInSession,
     sendUser
   ).delete(
-    cors({credentials: true}),
+    cors(settings.cors),
     getSession,
     destroySession,
     sendUser
   ).options(
-    cors({credentials: true}),
+    cors(settings.cors),
   );
 
 app.route('*')
   .get(
     setProxy
-  )
-  .all(
+  ).options(
+    setProxy
+  ).all(
     getSession,
     loadInSession,
     parseAuthenticationHeader,
