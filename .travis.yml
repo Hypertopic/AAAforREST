@@ -13,7 +13,7 @@ cache:
   - ~/.local
 
 install:
-- docker run --name couchdb1 -d -p 5984:5984 -v "$(pwd)"/conf/couchdb.ini:/opt/couchdb/etc/local.d/docker.ini couchdb
+- docker run --name couchdb1 -d -p 5984:5984 -v "$(pwd)"/conf/couchdb.ini:/opt/couchdb/etc/local.d/docker.ini couchdb:2
 - npm install
 - npm start &
 # Install CouchApp
