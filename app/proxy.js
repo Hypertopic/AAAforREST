@@ -17,7 +17,7 @@ process.on('uncaughtException', function(e) {
 });
 
 let settings = yaml.parse(fs.readFileSync('conf/config.yml', 'utf8'));
-let directory = new Ldap(settings.ldap);
+let directory = (settings.ldap)? new Ldap(settings.ldap) : null;
 
 // Express middleware
 
@@ -56,7 +56,7 @@ let parseAuthenticationForm = function(request, response, next) {
 };
 
 let checkAuthenticationOnLDAP = function(request, response, next) {
-  if (request.auth && request.auth.pass) {
+  if (request.auth && request.auth.pass && directory) {
     directory.authenticate(request.auth.name, request.auth.pass, function(err, user) {
       if (!(/^no such user/.test(err))) {
         request.auth.success = !err;
