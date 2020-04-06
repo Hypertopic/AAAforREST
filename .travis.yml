@@ -21,6 +21,7 @@ install:
 # Install Argos
 - wget https://github.com/Hypertopic/Argos/archive/v4.zip
 - unzip v4.zip
+- rm -rf Argos-4/__tests__
 - couchapp push Argos-4/app http://localhost:5984/argos
 # Set up test fixture
 - curl -X PUT localhost:5984/_users
