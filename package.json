@@ -1,7 +1,7 @@
 {
-  "name": "AAAforREST",
+  "name": "aaaforrest",
   "description": "An HTTP reverse proxy to bring authentication, authorization and accounting to RESTful applications",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Hypertopic/AAAforREST.git"
@@ -10,6 +10,10 @@
     "start": "node app/proxy.js",
     "test": "jest --verbose"
   },
+  "main": "app/index.js",
+  "files": [
+    "app/index.js"
+  ],
   "dependencies": {
     "basic-auth": "^2.0.1",
     "body-parser": "^1.19.0",
