@@ -49,27 +49,22 @@ module.exports = class AAAforREST {
   }
 
   parseAuthenticationForm = (request, response, next) => {
-    request.auth = {
-      name: request.body.name,
-      pass: request.body.password
-    }
+    let {name, password} = request.body; 
+    request.auth = {name, password};
     next();
   }
 
   parseAuthenticationHeader = (request, response, next) => {
     if (request.headers.authorization) {
-      request.auth = basicAuth(request) || null;
+      let {name, pass} = basicAuth(request) || {};
+      request.auth = {name, password: pass};
     }
     next();
   }
 
   checkAuthenticationOnHTTP = (request, response, next) => {
-    if (request.auth && request.auth.pass && request.auth.success === undefined) {
-      let headers = basic({
-        name: request.auth.name,
-        password: request.auth.pass
-      });
-      fetch(`http://${this.settings.service}/`, {headers})
+    if (request.auth && request.auth.password && request.auth.success === undefined) {
+      fetch(`http://${this.settings.service}/`, {headers: basic(request.auth)})
         .then((x) => {
           request.auth.success = x.ok;
           next();
@@ -80,8 +75,8 @@ module.exports = class AAAforREST {
   }
 
   checkAuthenticationOnLDAP = (request, response, next) => {
-    if (request.auth && request.auth.pass && this.directory) {
-      this.directory.authenticate(request.auth.name, request.auth.pass, function(err, user) {
+    if (request.auth && request.auth.password && this.directory) {
+      this.directory.authenticate(request.auth.name, request.auth.password, function(err, user) {
         if (!(/^no such user/.test(err))) {
           request.auth.success = !err;
         }
