@@ -96,9 +96,9 @@ module.exports = class AAAforREST {
   }
 
   updateHeaders = (request, response, next) => {
-    if (request.auth) {
+    let secret = this.settings.secret;
+    if (secret && request.auth) {
       let additional_headers = {};
-      let secret = this.settings.secret;
       if (secret.name && secret.password) {
         additional_headers = basic(secret);
       } else if (typeof secret === 'string') {
