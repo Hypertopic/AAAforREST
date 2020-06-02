@@ -109,7 +109,7 @@ module.exports = class AAAforREST {
             .update(request.auth.name).digest('hex')
         }
       } else {
-        console.err('`secret` should be either a string or API credentials');
+        console.error('`secret` should be either a string or API credentials');
       }
       request.headers = Object.assign(additional_headers, request.headers);
     }
