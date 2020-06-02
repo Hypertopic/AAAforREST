@@ -1,15 +1,11 @@
 var app = require('express')();
-var proxy = require('express-http-proxy');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-var Ldap = require('ldapauth-fork');
-var basicAuth = require('basic-auth');
 var logger = require('morgan');
 var cors = require('cors');
-var createHmac = require('crypto').createHmac;
 var yaml = require('yaml');
 var fs = require('fs');
-var fetch = require('node-fetch');
+var AAAforREST = require('./index');
 
 process.on('uncaughtException', function(e) {
   console.log(e.message);
@@ -17,123 +13,14 @@ process.on('uncaughtException', function(e) {
 });
 
 let settings = yaml.parse(fs.readFileSync('conf/config.yml', 'utf8'));
-let directory = (settings.ldap)? new Ldap(settings.ldap) : null;
-
-// Express middleware
+let aaa = new AAAforREST(settings);
 
 let getSession = session(settings.session);
-
-let setProxy = proxy(settings.service, {
-  preserveHostHdr: true,
-  proxyReqPathResolver: (req) => settings.path + req.url,
-  proxyReqOptDecorator: function(req) {
-    delete req.headers.authorization;
-    return req;
-  }
-});
 
 let destroySession = function (request, response, next) {
   request.session = null;
   next();
 }
-
-let continueIfContentType = function(types) {
-  return function(request, response, next) {
-    if (types.includes(request.headers["content-type"])) {
-      next();
-    } else {
-      response.sendStatus(415);
-    }
-  };
-}
-
-let parseAuthenticationForm = function(request, response, next) {
-  request.auth = {
-    name: request.body.name,
-    pass: request.body.password
-  }
-  next();
-};
-
-let checkAuthenticationOnLDAP = function(request, response, next) {
-  if (request.auth && request.auth.pass && directory) {
-    directory.authenticate(request.auth.name, request.auth.pass, function(err, user) {
-      if (!(/^no such user/.test(err))) {
-        request.auth.success = !err;
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-};
-
-let checkAuthenticationOnHTTP = function(request, response, next) {
-  if (request.auth && request.auth.pass && request.auth.success === undefined) {
-    let headers = {
-      'Authorization': 'Basic '
-        + Buffer.from(request.auth.name + ":" + request.auth.pass).toString('base64')
-    };
-    fetch(`http://${settings.service}/`, {headers})
-      .then((x) => {
-        request.auth.success = x.ok;
-        next();
-      });
-  } else {
-    next();
-  }
-};
-
-let continueIfAuthentified = function(request, response, next) {
-  if (request.auth && request.auth.success) {
-    next();
-  } else {
-    response.sendStatus(401);
-  }
-};
-
-let storeInSession = function(request, response, next) {
-  request.session.name = request.auth.name;
-  next();
-};
-
-let sendUser = function(request, response, next) {
-  let o = {ok:true};
-  if (request.auth) {
-    o.name = request.auth.name;
-  }
-  response.json(o);
-};
-
-let loadInSession = function(request, response, next) {
-  if (!request.auth && request.session && request.session.name) {
-    request.auth = {
-      name: request.session.name,
-      success: true
-    };
-  }
-  next();
-};
-
-let parseAuthenticationHeader = function(request, response, next) {
-  if (request.headers.authorization) {
-    request.auth = basicAuth(request) || null;
-  }
-  next();
-};
-
-let updateHeaders = function(request, response, next) {
-  if (request.auth) {
-    request.headers = Object.assign({
-      'X-Auth-CouchDB-UserName': request.auth.name,
-      'X-Auth-CouchDB-Roles': 'user',
-      'X-Auth-CouchDB-Token': createHmac('sha1', settings.secret).update(request.auth.name).digest('hex')
-    }, request.headers);
-  }
-  next();
-};
-
-// Express app configuration
 
 app.use(logger(settings.logFormat));
 
@@ -142,44 +29,44 @@ app.route('/_session')
     cors(settings.cors),
     getSession,
     destroySession,
-    continueIfContentType(['application/x-www-form-urlencoded','application/json']),
+    aaa.continueIfContentType(['application/x-www-form-urlencoded','application/json']),
     bodyParser.urlencoded({extended: false}),
     bodyParser.json({extended: false}),
-    parseAuthenticationForm,
-    checkAuthenticationOnLDAP,
-    checkAuthenticationOnHTTP,
-    continueIfAuthentified,
+    aaa.parseAuthenticationForm,
+    aaa.checkAuthenticationOnLDAP,
+    aaa.checkAuthenticationOnHTTP,
+    aaa.continueIfAuthentified,
     getSession,
-    storeInSession,
-    sendUser
+    aaa.storeInSession,
+    aaa.sendUser
   ).get(
     cors(settings.cors),
     getSession,
-    loadInSession,
-    sendUser
+    aaa.loadInSession,
+    aaa.sendUser
   ).delete(
     cors(settings.cors),
     getSession,
     destroySession,
-    sendUser
+    aaa.sendUser
   ).options(
     cors(settings.cors),
   );
 
 app.route('*')
   .get(
-    setProxy
+    aaa.forward({preserveCredentials: false})
   ).options(
-    setProxy
+    aaa.forward({preserveCredentials: false})
   ).all(
     getSession,
-    loadInSession,
-    parseAuthenticationHeader,
-    checkAuthenticationOnLDAP,
-    checkAuthenticationOnHTTP,
-    continueIfAuthentified,
-    updateHeaders,
-    setProxy
+    aaa.loadInSession,
+    aaa.parseAuthenticationHeader,
+    aaa.checkAuthenticationOnLDAP,
+    aaa.checkAuthenticationOnHTTP,
+    aaa.continueIfAuthentified,
+    aaa.updateHeaders,
+    aaa.forward({preserveCredentials: false})
   );
 
 app.listen(settings.port, function() {
