@@ -93,7 +93,6 @@ module.exports = class AAAforREST {
   }
 
   continueIfAuthentified = (request, response, next) => {
-    console.log(request.auth);
     if (request.auth && request.auth.success) {
       next();
     } else {
