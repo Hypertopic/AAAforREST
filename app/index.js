@@ -29,9 +29,8 @@ module.exports = class AAAforREST {
     this.directory = (settings.ldap)? new Ldap(settings.ldap) : null;    
   }
 
-  forward = ({preserveCredentials = true, preserveHost = true, https = false} = {}) => {
+  forward = ({preserveCredentials = true, preserveHost = true} = {}) => {
     return proxy(this.settings.service, {
-      https,
       preserveHostHdr: preserveHost,
       proxyReqPathResolver: (req) => this.settings.path + req.url,
       proxyReqOptDecorator: function(req) {
