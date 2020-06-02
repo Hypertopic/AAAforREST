@@ -65,10 +65,10 @@ module.exports = class AAAforREST {
 
   checkAuthenticationOnHTTP = (request, response, next) => {
     if (request.auth && request.auth.pass && request.auth.success === undefined) {
-      let headers = {
-        'Authorization': 'Basic '
-          + Buffer.from(request.auth.name + ":" + request.auth.pass).toString('base64')
-      };
+      let headers = basic({
+        name: request.auth.name,
+        password: request.auth.pass
+      });
       fetch(`http://${this.settings.service}/`, {headers})
         .then((x) => {
           request.auth.success = x.ok;
@@ -102,11 +102,21 @@ module.exports = class AAAforREST {
 
   updateHeaders = (request, response, next) => {
     if (request.auth) {
-      request.headers = Object.assign({
-        'X-Auth-CouchDB-UserName': request.auth.name,
-        'X-Auth-CouchDB-Roles': 'user',
-        'X-Auth-CouchDB-Token': createHmac('sha1', this.settings.secret).update(request.auth.name).digest('hex')
-      }, request.headers);
+      let additional_headers = {};
+      let secret = this.settings.secret;
+      if (secret.name && secret.password) {
+        additional_headers = basic(secret);
+      } else if (typeof secret === 'string') {
+        additional_headers = {
+          'X-Auth-CouchDB-UserName': request.auth.name,
+          'X-Auth-CouchDB-Roles': 'user',
+          'X-Auth-CouchDB-Token': createHmac('sha1', this.settings.secret)
+            .update(request.auth.name).digest('hex')
+        }
+      } else {
+        console.err('`secret` should be either a string or API credentials');
+      }
+      request.headers = Object.assign(additional_headers, request.headers);
     }
     next();
   }
@@ -135,3 +145,11 @@ module.exports = class AAAforREST {
   }
 
 }
+
+function basic({name, password}) {
+  return {
+    'Authorization': 'Basic '
+      + Buffer.from(`${name}:${password}`).toString('base64')
+  };
+}
+
