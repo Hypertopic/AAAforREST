@@ -29,10 +29,10 @@ module.exports = class AAAforREST {
     this.directory = (settings.ldap)? new Ldap(settings.ldap) : null;    
   }
 
-  forward = ({preserveCredentials = true, https = false} = {}) => {
+  forward = ({preserveCredentials = true, preserveHost = true, https = false} = {}) => {
     return proxy(this.settings.service, {
       https,
-      preserveHostHdr: true,
+      preserveHostHdr: preserveHost,
       proxyReqPathResolver: (req) => this.settings.path + req.url,
       proxyReqOptDecorator: function(req) {
         if (!preserveCredentials) delete req.headers.authorization;
