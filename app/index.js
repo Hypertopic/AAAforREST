@@ -18,11 +18,6 @@ module.exports = class AAAforREST {
    *  url: {string}
    *  searchBase: {string}
    *  searchFilter: {string}
-   * session:
-   *  secret: {string} 
-   *  resave: {boolean}
-   *  saveUninitialized: {boolean}
-   *  unset: {string}
    */
   constructor(settings) {
     this.settings = settings;
