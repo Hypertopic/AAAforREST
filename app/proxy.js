@@ -53,6 +53,11 @@ app.route('/_session')
     cors(settings.cors),
   );
 
+app.route('/_users/*')
+  .all(
+    aaa.forward({preserveCredentials: true})
+  );
+
 app.route('*')
   .get(
     aaa.forward({preserveCredentials: false})
