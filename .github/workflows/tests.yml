@@ -1,0 +1,37 @@
+name: Acceptance tests
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install and run Argos without proxy
+        run: |
+          wget https://github.com/Hypertopic/Argos/archive/v4.zip
+          unzip v4.zip
+          cd Argos-4
+          rm -rf __tests__
+          docker-compose up -d install
+          cd ..
+      - uses: nev7n/wait_for_response@v1
+        with:
+          url: http://localhost:5984/
+          responseCode: 200
+          timeout: 5000
+      - name: Create test users
+        run: |
+          curl --silent -X PUT localhost:5984/_users
+          curl --silent -X PUT localhost:5984/_users/org.couchdb.user:alice -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{"name":"alice", "password":"whiterabbit", "roles":[], "type":"user"}'
+          curl --silent -X PUT localhost:5984/_users/org.couchdb.user:riemann -H 'Accept:application/json' -H 'Content-Type:application/json' -d '{"name":"riemann", "password":"secret", "roles":[], "type":"user"}'
+      - name: Install AAAforREST
+        run: npm install
+      - name: Run AAAforREST
+        run: npm start >/dev/null &
+      - uses: nev7n/wait_for_response@v1
+        with:
+          url: http://localhost:1337/
+          responseCode: 200
+          timeout: 5000
+      - name: Run tests
+        run: npm test
+        shell: 'script -q -e -c "bash {0}"'
