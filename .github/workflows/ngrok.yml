@@ -1,0 +1,8 @@
+name: CI
+on: push
+ jobs:
+   https:
+    runs-on: ubuntu-latest
+    steps:
+    - run: ngrok http 1337 -bind-tls=true > /dev/null &
+    - run: curl --silent http://127.0.0.1:4040/api/tunnels | jq '.tunnels[0].public_url'
