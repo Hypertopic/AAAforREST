@@ -1,7 +1,9 @@
 const frisby = require('frisby');
 
+const APP_HOST = process.env.APP_HOST || 'http://localhost:1337';
+
 it('detects forged proxy authentication', () => frisby
-  .post('http://localhost:1337/', {
+  .post(`${APP_HOST}/`, {
     body: {},
     headers: new Headers({
       'Content-Type': 'application/json',
@@ -13,7 +15,7 @@ it('detects forged proxy authentication', () => frisby
 );
 
 it('allows cross-origin resource sharing', () => frisby
-  .get('http://localhost:1337/_session')
+  .get(`${APP_HOST}/_session`)
   .expect('header', 'Access-Control-Allow-Origin', 'http://localhost:3000')
   .expect('header', 'Access-Control-Allow-Credentials', 'true')
 );

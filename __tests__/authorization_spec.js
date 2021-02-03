@@ -1,24 +1,26 @@
 const frisby = require('frisby');
 
+const APP_HOST = process.env.APP_HOST || 'http://localhost:1337';
+
 const authorization = 'Basic ' + Buffer.from('riemann:password').toString('base64');
 
 it('allows anonymous read', () => frisby
-  .get('http://localhost:1337/')
+  .get(`${APP_HOST}/`)
   .expect('status', 200)
 );
 
 it('allows authenticated read', () => frisby
-  .get('http://localhost:1337/', {headers: new Headers({authorization})})
+  .get(`${APP_HOST}/`, {headers: new Headers({authorization})})
   .expect('status', 200)
 );
 
 it('does not allow anonymous write', () => frisby
-  .post('http://localhost:1337/', {})
+  .post(`${APP_HOST}/`, {})
   .expect('status', 401)
 );
 
 it('allows authenticated write', () => frisby
-  .post('http://localhost:1337/', {
+  .post(`${APP_HOST}/`, {
     body: {},
     headers: new Headers({
       authorization, 
