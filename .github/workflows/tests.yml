@@ -27,11 +27,12 @@ jobs:
         run: npm install
       - name: Run AAAforREST
         run: npm start >/dev/null &
-      - uses: nev7n/wait_for_response@v1
-        with:
-          url: http://localhost:1337/
-          responseCode: 200
-          timeout: 5000
+      - name: Run https proxy
+        run: |
+          sudo snap install ngrok
+          ngrok http 1337 -bind-tls=true > /dev/null &
       - name: Run tests
-        run: npm test
+        run: |
+          export APP_HOST=$(curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+          npm test
         shell: 'script -q -e -c "bash {0}"'
