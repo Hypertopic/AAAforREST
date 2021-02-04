@@ -89,6 +89,7 @@ module.exports = class AAAforREST {
     if (request.auth && request.auth.success) {
       next();
     } else {
+      response.set('WWW-Authenticate', 'Basic realm=""');
       response.sendStatus(401);
     }
   }
