@@ -12,6 +12,7 @@ module.exports = class AAAforREST {
 
   /**
    * service: {string}
+   * authenticationService: {string}
    * path: {string}
    * secret: {string}
    * ldap:
@@ -59,7 +60,9 @@ module.exports = class AAAforREST {
 
   checkAuthenticationOnHTTP = (request, response, next) => {
     if (request.auth && request.auth.password && request.auth.success === undefined) {
-      fetch(`http://${this.settings.service}/`, {headers: basic(request.auth)})
+      fetch(`http://${this.settings.authenticationService || this.settings.service}/`, {
+        headers: basic(request.auth)
+      })
         .then((x) => {
           request.auth.success = x.ok;
           next();
