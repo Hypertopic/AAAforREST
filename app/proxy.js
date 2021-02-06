@@ -22,11 +22,13 @@ let destroySession = function (request, response, next) {
   next();
 }
 
-app.use(logger(settings.logFormat));
+app.use(
+  logger(settings.logFormat),
+  cors(settings.cors)
+);
 
 app.route('/_session')
   .post(
-    cors(settings.cors),
     getSession,
     destroySession,
     aaa.continueIfContentType(['application/x-www-form-urlencoded','application/json']),
@@ -40,17 +42,13 @@ app.route('/_session')
     aaa.storeInSession,
     aaa.sendUser
   ).get(
-    cors(settings.cors),
     getSession,
     aaa.loadInSession,
     aaa.sendUser
   ).delete(
-    cors(settings.cors),
     getSession,
     destroySession,
     aaa.sendUser
-  ).options(
-    cors(settings.cors),
   );
 
 app.route('/_users/*')
