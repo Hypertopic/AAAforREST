@@ -1,6 +1,6 @@
 const proxy = require('express-http-proxy');
 const basicAuth = require('basic-auth');
-const Ldap = require('ldapauth-fork');
+const Ldap = require('./ldap');
 const fetch = require('node-fetch');
 const createHmac = require('crypto').createHmac;
 const session = require('express-session');
@@ -22,7 +22,7 @@ module.exports = class AAAforREST {
    */
   constructor(settings) {
     this.settings = settings;
-    this.directory = (settings.ldap)? new Ldap(settings.ldap) : null;    
+    this.directory = (settings.ldap)? new Ldap(settings.ldap) : null;
   }
 
   forward = ({preserveCredentials = true, preserveHost = true} = {}) => {
@@ -74,12 +74,16 @@ module.exports = class AAAforREST {
 
   checkAuthenticationOnLDAP = (request, response, next) => {
     if (request.auth && request.auth.password && this.directory) {
-      this.directory.authenticate(request.auth.name, request.auth.password, function(err, user) {
-        if (!(/^no such user/.test(err))) {
-          request.auth.success = !err;
-        }
-        next();
-      });
+      this.directory.cachedSearchAndBind(request.auth.name, request.auth.password)
+        .then(x => {
+          console.log(request.auth.name, request.auth.password, x);
+          request.auth.success = x;
+          next();
+        })
+        .catch(x => {
+          console.log(request.auth.name, request.auth.password, x);
+          next();
+        });
     } else {
       next();
     }

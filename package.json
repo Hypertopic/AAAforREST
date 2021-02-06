@@ -22,7 +22,8 @@
     "express-http-proxy": "^1.6.0",
     "express-session": "^1.17.1",
     "fs": "0.0.1-security",
-    "ldapauth-fork": "^4.3.3",
+    "ldapjs": "^2.2.0",
+    "memoizee": "^0.4.15",
     "morgan": "^1.9.1",
     "node-fetch": "^2.6.1",
     "yaml": "^1.7.2"
