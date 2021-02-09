@@ -76,12 +76,10 @@ module.exports = class AAAforREST {
     if (request.auth && request.auth.password && this.directory) {
       this.directory.cachedSearchAndBind(request.auth.name, request.auth.password)
         .then(x => {
-          console.log(request.auth.name, request.auth.password, x);
           request.auth.success = x;
           next();
         })
         .catch(x => {
-          console.log(request.auth.name, request.auth.password, x);
           next();
         });
     } else {

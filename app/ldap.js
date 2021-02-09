@@ -22,7 +22,6 @@ module.exports = class Ldap {
    * true if user and password are OK.
    */
   searchAndBind = (user, password) => new Promise((resolve, reject) => {
-    console.log('Real search for', user, password);
     let ldapUser = `${this.id}=${user},${this.searchBase}`;
     let ldap = LDAP.createClient({url: this.url});
     ldap.search(ldapUser, {}, (tcpError, res) => {
