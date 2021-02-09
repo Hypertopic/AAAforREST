@@ -16,7 +16,8 @@ module.exports = class Ldap {
   }
 
   /**
-   * null if user does not exist,
+   * @return Promise
+   * rejected if user does not exist,
    * false if password is bad,
    * true if user and password are OK.
    */
