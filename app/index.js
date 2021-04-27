@@ -28,6 +28,7 @@ module.exports = class AAAforREST {
   forward = ({preserveCredentials = true, preserveHost = true} = {}) => {
     return proxy(this.settings.service, {
       preserveHostHdr: preserveHost,
+      limit: this.settings.limit,
       proxyReqPathResolver: (req) => this.settings.path + req.url,
       proxyReqOptDecorator: function(req) {
         if (!preserveCredentials) delete req.headers.authorization;

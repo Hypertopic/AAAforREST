@@ -4,6 +4,7 @@ service: localhost:5984
 path: /argos/_design/argos/_rewrite
 secret: TO_BE_CHANGED
 logFormat: dev
+limit: 500mb
 session:
   proxy: true
   cookie:

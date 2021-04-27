@@ -32,7 +32,7 @@ app.route('/_session')
     getSession,
     destroySession,
     aaa.continueIfContentType(['application/x-www-form-urlencoded','application/json']),
-    bodyParser.urlencoded({extended: false, limit: '500mb'}),
+    bodyParser.urlencoded({extended: false}),
     bodyParser.json({extended: false}),
     aaa.parseAuthenticationForm,
     aaa.checkAuthenticationOnLDAP,
