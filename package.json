@@ -12,6 +12,7 @@
   },
   "main": "app/index.js",
   "files": [
+    "app/ldap.js",
     "app/index.js"
   ],
   "dependencies": {
