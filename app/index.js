@@ -19,6 +19,7 @@ module.exports = class AAAforREST {
    *  url: {string}
    *  searchBase: {string}
    *  searchFilter: {string}
+   * record: {string}
    */
   constructor(settings) {
     this.settings = settings;
@@ -35,6 +36,16 @@ module.exports = class AAAforREST {
         return req;
       }
     })
+  }
+
+  recordIfUpdate = (request, response, next) => {
+    if (this.settings.record && request.body && new RegExp('^/[^/]*$').test(request.url)) {
+      request.body[this.settings.record] = {
+        contributor: request.auth.name,
+        modified: new Date()
+      };
+    }
+    next();
   }
 
   continueIfContentType = (types) => (request, response, next) => {

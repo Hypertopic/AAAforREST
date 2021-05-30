@@ -69,6 +69,8 @@ app.route('*')
     aaa.checkAuthenticationOnHTTP,
     aaa.continueIfAuthentified,
     aaa.updateHeaders,
+    bodyParser.json(),
+    aaa.recordIfUpdate,
     aaa.forward({preserveCredentials: false})
   );
 

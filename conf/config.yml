@@ -21,4 +21,5 @@ ldap:
   url: ldap://ldap.forumsys.com
   searchBase: dc=example,dc=com
   searchFilter: (uId={{username}})
+record: record
 
