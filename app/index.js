@@ -4,6 +4,7 @@ const Ldap = require('./ldap');
 const fetch = require('node-fetch');
 const createHmac = require('crypto').createHmac;
 const session = require('express-session');
+const bodyParser = require('body-parser');
 
 /**
  * Every method (except the constructor) returns an Express middleware.
@@ -38,14 +39,23 @@ module.exports = class AAAforREST {
     })
   }
 
-  recordIfUpdate = (request, response, next) => {
-    if (this.settings.record && request.body && new RegExp('^/[^/]*$').test(request.url)) {
-      request.body[this.settings.record] = {
-        contributor: request.auth.name,
-        modified: new Date()
-      };
+  recordInBody = (request, response, next) => {
+    if (this.settings.record 
+      && request.headers['content-type'] === 'application/json'
+      && new RegExp('^/[^/]*$').test(request.url)
+    ) {
+      bodyParser.json({extended: false})(request, response, () => {
+        if (request.body) {
+          request.body[this.settings.record] = {
+            contributor: request.auth.name,
+            modified: new Date()
+          };
+        }
+        next();
+      });
+    } else {
+      next();
     }
-    next();
   }
 
   continueIfContentType = (types) => (request, response, next) => {
