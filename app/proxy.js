@@ -58,6 +58,12 @@ app.route('/_users/*')
 
 app.route('*')
   .get(
+    getSession,
+    aaa.loadInSession,
+    aaa.parseAuthenticationHeader,
+    aaa.checkAuthenticationOnLDAP,
+    aaa.checkAuthenticationOnHTTP,
+    aaa.updateHeaders,
     aaa.forward({preserveCredentials: false})
   ).options(
     aaa.forward({preserveCredentials: false})
