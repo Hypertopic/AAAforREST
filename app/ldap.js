@@ -12,7 +12,7 @@ module.exports = class Ldap {
   constructor(settings) {
     this.url = settings.url;
     this.searchBase = settings.searchBase;
-    this.id = settings.searchFilter.match(/\w+/)[0];
+    this.searchFilter = settings.searchFilter;
   }
 
   /**
@@ -22,22 +22,31 @@ module.exports = class Ldap {
    * true if user and password are OK.
    */
   searchAndBind = (user, password) => new Promise((resolve, reject) => {
-    let ldapUser = `${this.id}=${user},${this.searchBase}`;
+    let query = {
+      attributes: ['dn'],
+      filter: this.searchFilter.replace(/{{.+}}/, user),
+      scope: 'sub'
+    };
     let ldap = LDAP.createClient({url: this.url});
-    ldap.search(ldapUser, {}, (tcpError, res) => {
+    ldap.search(this.searchBase, query, (tcpError, res) => {
       if (tcpError) {
         close(ldap);
         reject('TCP error');
       } else {
-        res.on('error', () => {
-          close(ldap);
-          reject('User not found');
+        let dn;
+        res.on('searchEntry', (entry) => {
+          dn = entry.object.dn;
         });
-        res.on('searchEntry', () => {
-          ldap.bind(ldapUser, password, (badPassword) => {
+        res.on('end', () => {
+          if (!dn) {
             close(ldap);
-            resolve(!badPassword);
-          });
+            reject('User not found');
+          } else {
+            ldap.bind(dn, password, (badPassword) => {
+              close(ldap);
+              resolve(!badPassword);
+            });
+          }
         });
       }
     });
