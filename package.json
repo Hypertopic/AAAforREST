@@ -26,7 +26,7 @@
     "ldapjs": "^2.2.0",
     "memoizee": "^0.4.15",
     "morgan": "^1.9.1",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.1.1",
     "yaml": "^1.7.2"
   },
   "devDependencies": {
