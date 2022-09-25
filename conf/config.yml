@@ -3,7 +3,7 @@ service: localhost:5984
 #authenticationService: localhost:5985
 path: /argos/_design/argos/_rewrite
 secret: TO_BE_CHANGED
-logFormat: dev
+logFormat: :date[iso] :remote-addr :remote-user :method :url :status :response-time[0]ms :total-time[0]ms ":user-agent"
 limit: 500mb
 session:
   proxy: true

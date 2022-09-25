@@ -79,6 +79,4 @@ app.route('*')
     aaa.forward({preserveCredentials: false})
   );
 
-app.listen(settings.port, function() {
-  console.log(`Test it on http://localhost:${settings.port}/`);
-});
+app.listen(settings.port);
