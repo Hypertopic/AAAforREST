@@ -62,7 +62,7 @@ module.exports = class AAAforREST {
     if (types.includes(request.headers["content-type"])) {
       next();
     } else {
-      response.sendStatus(415);
+      response.status(415).json({reason: 'Unsupported Media Type'});
     }
   }
 
@@ -113,7 +113,7 @@ module.exports = class AAAforREST {
     if (request.auth && request.auth.success) {
       next();
     } else {
-      response.sendStatus(401);
+      response.status(401).json({reason: 'Unauthorized'});
     }
   }
 
