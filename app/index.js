@@ -16,6 +16,7 @@ module.exports = class AAAforREST {
    * authenticationService: {string}
    * path: {string}
    * secret: {string}
+   * challengeRealm: {string}
    * ldap:
    *  url: {string}
    *  searchBase: {string}
@@ -113,6 +114,10 @@ module.exports = class AAAforREST {
     if (request.auth && request.auth.success) {
       next();
     } else {
+      let challengeRealm = this.settings.challengeRealm;
+      if (challengeRealm) {
+        response.set('WWW-Authenticate', `Basic realm="${challengeRealm}"`);
+      }
       response.status(401).json({reason: 'Unauthorized'});
     }
   }
