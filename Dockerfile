@@ -1,4 +1,4 @@
-FROM node:lts
+FROM node:18-bullseye
 COPY . /AAAforREST
 WORKDIR /AAAforREST
 RUN npm install
