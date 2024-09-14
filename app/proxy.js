@@ -5,6 +5,7 @@ var logger = require('morgan');
 var cors = require('cors');
 var yaml = require('yaml');
 var fs = require('fs');
+var robots = require('express-robots-txt');
 var AAAforREST = require('./index');
 
 process.on('uncaughtException', function(e) {
@@ -16,6 +17,7 @@ let settings = yaml.parse(fs.readFileSync('conf/config.yml', 'utf8'));
 let aaa = new AAAforREST(settings);
 
 let getSession = session(settings.session);
+let robotsExclusion = robots(settings.robots);
 
 let destroySession = function (request, response, next) {
   request.session = null;
@@ -58,6 +60,7 @@ app.route('/_users/*')
 
 app.route('*')
   .get(
+    robotsExclusion,
     getSession,
     aaa.loadInSession,
     aaa.parseAuthenticationHeader,

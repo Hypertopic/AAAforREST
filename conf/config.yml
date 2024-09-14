@@ -23,4 +23,7 @@ ldap:
   searchBase: dc=example,dc=com
   searchFilter: (uId={{username}})
 record: record
+robots:
+  UserAgent: '*'
+  Disallow: /
 
