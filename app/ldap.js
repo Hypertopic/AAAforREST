@@ -35,7 +35,7 @@ module.exports = class Ldap {
       } else {
         let dn;
         res.on('searchEntry', (entry) => {
-          dn = entry.object.dn;
+          dn = entry._dn.toString();
         });
         res.on('end', () => {
           if (!dn) {

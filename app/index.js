@@ -1,7 +1,7 @@
 const proxy = require('express-http-proxy');
 const basicAuth = require('basic-auth');
 const Ldap = require('./ldap');
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const createHmac = require('crypto').createHmac;
 const session = require('express-session');
 const bodyParser = require('body-parser');
