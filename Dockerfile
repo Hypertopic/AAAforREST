@@ -1,4 +1,4 @@
-FROM node:22
+FROM node:22-slim
 COPY . /AAAforREST
 WORKDIR /AAAforREST
 RUN npm install
