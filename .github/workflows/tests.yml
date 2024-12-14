@@ -37,7 +37,7 @@ jobs:
       - name: Run https proxy
         run: |
           sudo snap install ngrok
-          ngrok http 1337 -bind-tls=true > /dev/null &
+          ngrok http 1337 > /dev/null &
       - name: Run tests
         run: |
           export APP_HOST=$(curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url')
