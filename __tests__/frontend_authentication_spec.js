@@ -5,7 +5,7 @@ const APP_HOST = process.env.APP_HOST || 'http://localhost:1337';
 
 const schema = joi.object().keys({
   ok: joi.boolean().required(), 
-  name: joi.string()}
+  name: joi.forbidden()}
 );
 
 it('authenticates with HTTP basic authentication', () => frisby
@@ -22,7 +22,7 @@ it('authenticates with HTTP basic authentication', () => frisby
 it('authenticates with HTTP cookie if credentials are valid', () => frisby
   .get(`${APP_HOST}/_session`)
   .expect('status', 200)
-  .expect('jsonTypes', schema.forbiddenKeys('name'))
+  .expect('jsonTypes', schema)
   .then(() => frisby
     .post(`${APP_HOST}/_session`, {name:'alice', password:'whiterabbit'})
     .expect('status', 200)
@@ -42,7 +42,7 @@ it('authenticates with HTTP cookie if credentials are valid', () => frisby
       )
       .then(() => frisby
         .get(`${APP_HOST}/_session`, {headers:{cookie}})
-        .expect('jsonTypes', schema.forbiddenKeys('name'))
+        .expect('jsonTypes', schema)
       )
       .then(() => frisby
         .post(`${APP_HOST}/`, {body:{}, headers:{cookie}})
